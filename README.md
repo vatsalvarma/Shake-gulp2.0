@@ -1,4 +1,4 @@
-# React + TypeScript + Vite
+# https://vatsalvarma.github.io/Shake-gulp2.0/
 
 This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
 

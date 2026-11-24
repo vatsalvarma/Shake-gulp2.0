@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, type FC } from 'react';
-import { Sparkles, CheckCircle2 } from 'lucide-react';
+import { CheckCircle2 } from 'lucide-react';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 
@@ -10,19 +10,26 @@ gsap.registerPlugin(ScrollTrigger);
 // Any change made here updates immediately live on screen!
 // =========================================================================
 export const SPLASH_CONFIG = {
-  // Brand details
-  brandName: 'SHAKE & GULP',
-  brandTagline: '100% RAW • COLD-PRESSED BOTANICALS',
+  // 1. Logo Adjustments:
   logoPath: '/Shake-Gulp-Logo.png',
+  logoSizePx: 200, // 👈 Logo width & height in px (e.g. 90, 120, 160)
+  logoOffsetY: 0, // 👈 Move logo Up (-) or Down (+) in px
+  logoGlowIntensity: 0.45, // 👈 Neon glow strength around logo (0.1 - 1.0)
+ 
+  // 2. Spacing:
+  gapBetweenLogoAndBarPx: 28, // 👈 Gap (px) between the logo and the fill-up bar
 
-  // Animation timing
+  // 3. Fill-Up Progress Bar Adjustments:
+  barWidthPx: 360, // 👈 Width of the progress bar in px (e.g. 280, 360, 440)
+  barHeightPx: 7, // 👈 Thickness of the bar in px (e.g. 8, 12, 16)
+  barOffsetY: 0, // 👈 Move bar Up (-) or Down (+) in px
+  showStatusText: true, // 👈 Set to false to hide "Cold-pressing raw whole grains..."
+  showPercentage: true, // 👈 Set to false to hide the "33%" percentage
+
+  // 4. Animation Timing:
   minDisplayTimeMs: 1400, // Minimum duration (ms) for the smooth fill-up bar
   fadeOutDurationMs: 700, // Duration (ms) of the exit curtain fade
   safetyTimeoutMs: 8000, // Safety fallback timeout in case of network stall
-
-  // Styling
-  barWidth: 'w-72 sm:w-96', // Width of the progress bar
-  barHeight: 'h-3 sm:h-3.5', // Height of the progress bar
 };
 
 // Complete list of all active image assets across Pages 1 to 9
@@ -220,35 +227,52 @@ export const SplashScreen: FC<SplashScreenProps> = ({ onComplete }) => {
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[520px] h-[520px] bg-emerald-500/12 rounded-full blur-[100px] pointer-events-none" />
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[280px] h-[280px] bg-lime-400/15 rounded-full blur-[60px] pointer-events-none" />
 
-      {/* Center Brand Identity */}
-      <div className="relative z-10 flex flex-col items-center text-center px-4 mb-8">
+      {/* Center Brand Identity (Logo Only) */}
+      <div
+        className="relative z-10 flex flex-col items-center text-center px-4"
+        style={{
+          marginBottom: `${SPLASH_CONFIG.gapBetweenLogoAndBarPx}px`,
+        }}
+      >
         {/* Logo Container with Ambient Pulse */}
-        <div className="relative mb-5 group">
-          <div className="absolute -inset-2 bg-gradient-to-r from-lime-400/20 to-emerald-500/20 rounded-full blur-xl animate-pulse" />
+        <div
+          className="relative group flex items-center justify-center"
+          style={{
+            transform: `translateY(${SPLASH_CONFIG.logoOffsetY}px)`,
+          }}
+        >
+          <div
+            className="absolute -inset-3 bg-gradient-to-r from-lime-400/20 to-emerald-500/20 rounded-full blur-xl animate-pulse"
+            style={{ opacity: SPLASH_CONFIG.logoGlowIntensity }}
+          />
           <img
             src={SPLASH_CONFIG.logoPath}
             alt="Shake & Gulp Logo"
-            className="relative w-24 h-24 sm:w-28 sm:h-28 object-contain drop-shadow-[0_0_30px_rgba(163,230,53,0.45)] transition-transform duration-500"
+            className="relative object-contain transition-transform duration-500"
+            style={{
+              width: `${SPLASH_CONFIG.logoSizePx}px`,
+              height: `${SPLASH_CONFIG.logoSizePx}px`,
+              filter: `drop-shadow(0 0 30px rgba(163, 230, 53, ${SPLASH_CONFIG.logoGlowIntensity}))`,
+            }}
           />
-        </div>
-
-        {/* Brand Headline */}
-        <h1 className="text-3xl sm:text-4xl md:text-5xl font-black tracking-tight text-white drop-shadow-[0_4px_25px_rgba(0,0,0,0.8)] mb-2.5">
-          {SPLASH_CONFIG.brandName}
-        </h1>
-
-        {/* Eyebrow Pill */}
-        <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full border border-white/20 bg-white/5 backdrop-blur-md text-white/80 text-xs font-semibold tracking-widest uppercase shadow-sm">
-          <Sparkles size={13} className="text-lime-300 animate-spin" style={{ animationDuration: '6s' }} />
-          <span>{SPLASH_CONFIG.brandTagline}</span>
         </div>
       </div>
 
       {/* Progress Fillup Bar Container */}
-      <div className="relative z-10 flex flex-col items-center w-full px-6 max-w-lg">
+      <div
+        className="relative z-10 flex flex-col items-center px-6 max-w-full"
+        style={{
+          transform: `translateY(${SPLASH_CONFIG.barOffsetY}px)`,
+        }}
+      >
         {/* Outer Frosted Track */}
         <div
-          className={`${SPLASH_CONFIG.barWidth} ${SPLASH_CONFIG.barHeight} rounded-full bg-white/10 backdrop-blur-md border border-white/20 p-[2px] relative overflow-hidden shadow-[inset_0_2px_4px_rgba(0,0,0,0.6)] mb-3`}
+          className="rounded-full bg-white/10 backdrop-blur-md border border-white/20 p-[2px] relative overflow-hidden shadow-[inset_0_2px_4px_rgba(0,0,0,0.6)] mb-3"
+          style={{
+            width: `${SPLASH_CONFIG.barWidthPx}px`,
+            maxWidth: '85vw',
+            height: `${SPLASH_CONFIG.barHeightPx}px`,
+          }}
         >
           {/* Inner Fill Bar */}
           <div
@@ -269,22 +293,34 @@ export const SplashScreen: FC<SplashScreenProps> = ({ onComplete }) => {
         </div>
 
         {/* Progress Metrics & Status Text */}
-        <div className={`${SPLASH_CONFIG.barWidth} flex justify-between items-center text-xs text-white/75 font-medium px-1`}>
-          <div className="flex items-center gap-1.5">
-            {isDone ? (
-              <CheckCircle2 size={13} className="text-lime-400" />
-            ) : (
-              <span className="w-1.5 h-1.5 rounded-full bg-lime-400 animate-ping inline-block" />
-            )}
-            <span className="tracking-wide transition-all duration-300">
-              {statusMessage}
-            </span>
-          </div>
+        {(SPLASH_CONFIG.showStatusText || SPLASH_CONFIG.showPercentage) && (
+          <div
+            className="flex justify-between items-center text-xs text-white/75 font-medium px-1"
+            style={{
+              width: `${SPLASH_CONFIG.barWidthPx}px`,
+              maxWidth: '85vw',
+            }}
+          >
+            {SPLASH_CONFIG.showStatusText ? (
+              <div className="flex items-center gap-1.5">
+                {isDone ? (
+                  <CheckCircle2 size={13} className="text-lime-400" />
+                ) : (
+                  <span className="w-1.5 h-1.5 rounded-full bg-lime-400 animate-ping inline-block" />
+                )}
+                <span className="tracking-wide transition-all duration-300">
+                  {statusMessage}
+                </span>
+              </div>
+            ) : <div />}
 
-          <span className="font-mono font-bold text-white tracking-wider tabular-nums text-sm">
-            {progress}%
-          </span>
-        </div>
+            {SPLASH_CONFIG.showPercentage && (
+              <span className="font-mono font-bold text-white tracking-wider tabular-nums text-sm">
+                {progress}%
+              </span>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

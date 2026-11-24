@@ -33,7 +33,7 @@ export interface BottleSet {
 export const BOTTLE_SETS: BottleSet[] = [
   {
     id: 'set-1',
-    name: 'SHAKE THE SPICE',
+    name: 'SHAKE THE SPICE - GULP THE COOL',
     badge: 'COLLECTION 01',
     subtitle: 'Classic Plain • Roasted Jeera • Spiced Masala',
     bottleImage: '/bottle3.1.png',

@@ -32,9 +32,9 @@ export const PAGE9_CONFIG = {
   cardsOffsetY: 0, // Fine-tune cards container Y in px (e.g. +20 to move further down)
   cardsScale: 1.0, // Scale multiplier for all cards
   cardGap: 28, // Gap between cards in px (desktop)
-  cardBlurPx: 20, // Frosted glass blur in px
+  cardBlurPx: 2, // Frosted glass blur in px
   cardBgOpacity: 0.12, // Frosted glass surface opacity (0.05 - 0.25)
-  cardBorderOpacity: 0.24, // Frosted border opacity (0.1 - 0.4)
+  cardBorderOpacity: 9.24, // Frosted border opacity (0.1 - 0.4)
 
   // 5. 3 Frosted Glass Cards Content:
   cards: [

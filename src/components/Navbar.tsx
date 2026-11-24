@@ -1,6 +1,21 @@
 import { useState, type FC } from 'react';
 import { Menu, X } from 'lucide-react';
 
+// =========================================================================
+// 🎛️ NAVBAR CONFIGURATION (Adjust Manually Here)
+// =========================================================================
+export const NAVBAR_CONFIG = {
+  // 1. Transparency & Background Opacity:
+  bgOpacity: 0.04, // 👈 0.0 = 100% transparent, 0.2 = frosted glass, 0.7 = solid
+  bgColor: '255, 255, 255', // 👈 RGB color ('255, 255, 255' = white frost, '0, 0, 0' = dark tint)
+
+  // 2. Frosted Blur:
+  blurPx: 26, // 👈 Background blur (0 = crystal clear see-through, 25 = heavy frosted blur)
+
+  // 3. Border Opacity:
+  borderOpacity: 0.22, // 👈 0.0 = no border line, 0.35 = sharp visible border
+};
+
 interface NavbarProps {
   onOpenCart?: () => void;
   cartCount?: number;
@@ -50,10 +65,10 @@ export const Navbar: FC<NavbarProps> = ({ onOpenCart }) => {
       <div
         className="w-full max-w-[95%] xl:max-w-[1400px] mx-auto flex items-center justify-between px-7 sm:px-10 py-3 rounded-full transition-all duration-300"
         style={{
-          background: 'rgba(255, 255, 255, 0.04)',
-          backdropFilter: 'blur(16px) saturate(180%)',
-          WebkitBackdropFilter: 'blur(16px) saturate(180%)',
-          border: '1px solid rgba(255, 255, 255, 0.22)',
+          background: `rgba(${NAVBAR_CONFIG.bgColor}, ${NAVBAR_CONFIG.bgOpacity})`,
+          backdropFilter: `blur(${NAVBAR_CONFIG.blurPx}px) saturate(180%)`,
+          WebkitBackdropFilter: `blur(${NAVBAR_CONFIG.blurPx}px) saturate(180%)`,
+          border: `1px solid rgba(255, 255, 255, ${NAVBAR_CONFIG.borderOpacity})`,
           boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.35)',
         }}
       >

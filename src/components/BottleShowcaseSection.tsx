@@ -12,6 +12,7 @@ export const PAGE3_CONFIG = {
   bottleScale: 1.1,            // 👈 Bottle scale multiplier (e.g. 1.05 for 5% larger)
   bottleWidth: 'clamp(360px, 48vw, 760px)', // 👈 Responsive width of the 3-bottle set
   foregroundBottomOffset: 0,   // 👈 Foreground mossy log vertical offset in px
+  orderButtonText: 'GULP THE COOL', // 👈 Change the green button text here!
 };
 
 // =========================================================================
@@ -32,7 +33,7 @@ export interface BottleSet {
 export const BOTTLE_SETS: BottleSet[] = [
   {
     id: 'set-1',
-    name: 'AUTHENTIC BUTTERMILK TRIO',
+    name: 'SHAKE THE SPICE',
     badge: 'COLLECTION 01',
     subtitle: 'Classic Plain • Roasted Jeera • Spiced Masala',
     bottleImage: '/bottle3.1.png',
@@ -41,7 +42,7 @@ export const BOTTLE_SETS: BottleSet[] = [
   },
   {
     id: 'set-2',
-    name: 'WILD AMLA ELIXIR TRIO',
+    name: 'SHAKE THE SPICE',
     badge: 'COLLECTION 02',
     subtitle: 'Pure Amla • Cold Ginger • Raw Forest Honey',
     bottleImage: '/bottle3.1.png', // Ready for your 2nd bottle image
@@ -50,7 +51,7 @@ export const BOTTLE_SETS: BottleSet[] = [
   },
   {
     id: 'set-3',
-    name: 'BOTANICAL VITALITY SET',
+    name: 'SHAKE  THE  SPICE',
     badge: 'COLLECTION 03',
     subtitle: 'Tulsi Lime • Moringa Green • Mint Leaf',
     bottleImage: '/bottle3.1.png', // Ready for your 3rd bottle image
@@ -364,7 +365,7 @@ export const BottleShowcaseSection: FC<BottleShowcaseSectionProps> = ({ onAddToC
             onClick={onAddToCart}
             className="mt-3 px-4 py-1.5 rounded-full pointer-events-auto bg-lime-400 text-black text-xs font-black uppercase tracking-wider shadow-lg hover:bg-lime-300 hover:scale-105 active:scale-95 transition-all cursor-pointer"
           >
-            Order This Set
+            {PAGE3_CONFIG.orderButtonText}
           </button>
         )}
       </div>

@@ -4,6 +4,12 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { PAGE4_CONFIG, PAGE4_ABOUT_CONTENT } from './AboutSection';
 import { PAGE5_CONFIG, PAGE5_BOTTLE_LANDING, ROUTE_4_TO_5_CONFIG, PAGE5_CONTENT } from './Page5Section';
 import { PAGE6_CONFIG, PAGE6_BOTTLE_LANDING, ROUTE_5_TO_6_CONFIG, PAGE6_CONTENT } from './Page6Section';
+import {
+  getUiScale,
+  projectCoverPoint,
+  RESPONSIVE_SCREEN_CONFIG,
+  useViewportSize,
+} from '../utils/responsiveLayout';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -47,6 +53,118 @@ export const Page4to6Experience: FC = () => {
       : 'object-center';
   const p6FitClass = p6.bgFit === 'contain' ? 'object-contain' : 'object-cover';
 
+  // Track viewport size cleanly so bottle curve & Page 6 metal rack landing stay locked across all screens
+  const { vw, vh } = useViewportSize();
+  const uiScale = getUiScale(vw, vh);
+
+  // Project normal-screen reference positions (1536 x 695) onto active screen via each background's cover box.
+  // Page 6 bottle foot anchors directly onto the metal wire rack inside bg6.png across every screen size.
+  const flowMetrics = (() => {
+    const { referenceWidth: refW, referenceHeight: refH, page6MetalRack } = RESPONSIVE_SCREEN_CONFIG;
+    const { widthScale, heightScale, sideCardScale, isMobile } = uiScale;
+
+    const baseBottleHeightPx = isMobile ? Math.min(vh * 0.68, vw * 0.85) : vh * 0.82;
+
+    if (isMobile) {
+      const mobileRefH = refH * 0.82;
+      const mobileScaleFactor = Math.min(vw / 440, 0.92);
+      const targetH4 = p4.bottleScale * mobileRefH * mobileScaleFactor;
+      const targetH5 = landing5.scale * mobileRefH * mobileScaleFactor;
+      const targetH6 = Math.min(landing6.scale * mobileRefH * mobileScaleFactor, vh * 0.58);
+
+      const rackBottomY = Math.min(page6MetalRack.rackSurfaceYRatio * vh, vh * 0.945);
+      const centerY6 = rackBottomY - targetH6 / 2;
+
+      return {
+        baseBottleHeightPx,
+        widthScale,
+        heightScale,
+        sideCardScale,
+        curveScaleX: Math.min(vw / 500, 0.85),
+        isMobile,
+        offsetX4: Math.max(Math.min((p4.bottleX / refW) * vw * 1.4, vw * 0.25), -vw * 0.24),
+        offsetY4: (p4.bottleY / refH) * vh,
+        scale4: targetH4 / baseBottleHeightPx,
+        offsetX5: Math.max(Math.min((landing5.x / refW) * vw * 1.5, vw * 0.26), -vw * 0.26),
+        offsetY5: vh + (landing5.y / refH) * vh,
+        scale5: targetH5 / baseBottleHeightPx,
+        offsetX6: (landing6.x / refW) * vw,
+        offsetY6: 2 * vh - p6.movePage6Up + (centerY6 - vh / 2),
+        scale6: targetH6 / baseBottleHeightPx,
+      };
+    }
+
+    // Desktop & laptop viewports (>= 768px):
+    // 1. Page 4 resting spot on bg4.png (1672x941, center)
+    const p4Proj = projectCoverPoint(
+      vw,
+      vh,
+      1672,
+      941,
+      0.5,
+      0.5,
+      refW / 2 + p4.bottleX,
+      refH / 2 + p4.bottleY
+    );
+    const x4Clamped = Math.min(Math.max(p4Proj.x, vw * 0.12), vw * 0.88);
+    const targetH4 = p4.bottleScale * (0.82 * refH) * p4Proj.scaleRatio;
+
+    // 2. Page 5 hand grip spot on bg5.png (1881x836, top-anchored)
+    const p5Proj = projectCoverPoint(
+      vw,
+      vh,
+      1881,
+      836,
+      0.5,
+      0.0,
+      refW / 2 + landing5.x,
+      refH / 2 + landing5.y
+    );
+    const x5Clamped = Math.min(Math.max(p5Proj.x, vw * 0.12), vw * 0.88);
+    const targetH5 = landing5.scale * (0.82 * refH) * p5Proj.scaleRatio;
+
+    // 3. Page 6 metal rack landing spot on bg6.png (1899x828, top-anchored)
+    // Foot lands squarely on the bottom metal rack surface between the mint leaves.
+    const rackRefY =
+      page6MetalRack.rackSurfaceYRatio * refH +
+      (landing6.y - page6MetalRack.referenceLandingY);
+    const p6Proj = projectCoverPoint(
+      vw,
+      vh,
+      1899,
+      828,
+      0.5,
+      0.0,
+      refW / 2 + landing6.x,
+      rackRefY
+    );
+    const x6Clamped = Math.min(Math.max(p6Proj.x, vw * 0.12), vw * 0.88);
+    const targetH6 = Math.min(
+      landing6.scale * (0.82 * refH) * p6Proj.scaleRatio,
+      vh * 0.68
+    );
+    const rackBottomInPage6 = Math.min(p6Proj.y, vh * 0.945);
+    const centerY6 = rackBottomInPage6 - targetH6 / 2;
+
+    return {
+      baseBottleHeightPx,
+      widthScale,
+      heightScale,
+      sideCardScale,
+      curveScaleX: p5Proj.scaleRatio,
+      isMobile,
+      offsetX4: x4Clamped - vw / 2,
+      offsetY4: p4Proj.y - vh / 2,
+      scale4: targetH4 / baseBottleHeightPx,
+      offsetX5: x5Clamped - vw / 2,
+      offsetY5: vh + (p5Proj.y - vh / 2),
+      scale5: targetH5 / baseBottleHeightPx,
+      offsetX6: x6Clamped - vw / 2,
+      offsetY6: 2 * vh - p6.movePage6Up + (centerY6 - vh / 2),
+      scale6: targetH6 / baseBottleHeightPx,
+    };
+  })();
+
   useEffect(() => {
     const page4 = page4Ref.current;
     const page5 = page5Ref.current;
@@ -70,8 +188,18 @@ export const Page4to6Experience: FC = () => {
         });
       }
 
-      const pageHeight = window.innerHeight;
-      const startX = p4.bottleX;
+      const {
+        offsetX4,
+        offsetY4,
+        scale4,
+        offsetX5,
+        offsetY5,
+        scale5,
+        offsetX6,
+        offsetY6,
+        scale6,
+        curveScaleX,
+      } = flowMetrics;
 
       // Scroll Reveal for Page 4 "ABOUT US" text: slide in from right one by one
       if (aboutTextRef.current) {
@@ -92,6 +220,8 @@ export const Page4to6Experience: FC = () => {
               trigger: page4,
               start: 'top 70%',
               toggleActions: 'play reverse play reverse',
+              refreshPriority: 5,
+              invalidateOnRefresh: true,
             },
           }
         );
@@ -116,22 +246,21 @@ export const Page4to6Experience: FC = () => {
               trigger: page5,
               start: 'top 70%',
               toggleActions: 'play reverse play reverse',
+              refreshPriority: 5,
+              invalidateOnRefresh: true,
             },
           }
         );
       }
 
-      // Delta Y to Page 5 girl's hand
-      const deltaY5 = pageHeight + (landing5.y - p4.bottleY);
-
-      // Delta Y to Page 6 fridge shelf (accounting for negative margin-top)
-      const deltaY6 = 2 * pageHeight - p6.movePage6Up + (landing6.y - p4.bottleY);
+      const dy4to5 = offsetY5 - offsetY4;
+      const dy5to6 = offsetY6 - offsetY5;
 
       // Set initial Page 4 resting state with hardware acceleration
       gsap.set(bottleContainer, {
-        x: startX,
-        y: 0,
-        scale: p4.bottleScale,
+        x: offsetX4,
+        y: offsetY4,
+        scale: scale4,
         rotation: p4.bottleTilt,
         transformOrigin: 'center center',
         force3D: true,
@@ -139,14 +268,6 @@ export const Page4to6Experience: FC = () => {
 
       // =========================================================================
       // 🎬 SINGLE UNIFIED MASTER TIMELINE: Page 4 -> Page 5 -> Page 6
-      //
-      // 📐 EXACT BOTTLE ANGLES MATCHING YOUR DIAGRAM (Page 4 -> 5 Wave):
-      //  1. Bottle 1 (Page 4 start): slight tilt (+9°).
-      //  2. Bottle 2 (Plunge down left flank): straight upright (0°).
-      //  3. Bottle 3 (Bottom turn): tilts left into the curve (-20°).
-      //  4. Bottle 4 (Diagonal climb): leans forward up slope (+32°).
-      //  5. Bottle 5 (Crest before hand): arches over peak (-12°).
-      //  6. Bottle 6 (Landing in girl's hand): locks into grip (-39.5°).
       // =========================================================================
       let isFloatActive = true;
 
@@ -157,6 +278,8 @@ export const Page4to6Experience: FC = () => {
           endTrigger: page6,
           end: 'top top',
           scrub: 0.3,
+          refreshPriority: 5,
+          invalidateOnRefresh: true,
           onUpdate: (self) => {
             if (bottleFloat && floatTween) {
               if (self.progress > 0.03 && isFloatActive) {
@@ -177,55 +300,50 @@ export const Page4to6Experience: FC = () => {
       // 🌙 PHASE 1: PAGE 4 -> PAGE 5 TRAVEL (Total: 4.4 units)
       // -------------------------------------------------------------------------
       // Step 1: Plunge down along the left flank into Page 5 (0.00 -> 1.20)
-      // Bottle 2: Stays upright as it drops straight down (0.0°)
       masterTl.to(bottleContainer, {
-        x: startX - route4to5.leftSwoopOffset,
-        y: deltaY5 * 0.38,
-        scale: (p4.bottleScale + landing5.scale) * 0.54,
+        x: offsetX4 - route4to5.leftSwoopOffset * curveScaleX,
+        y: offsetY4 + dy4to5 * 0.38,
+        scale: (scale4 + scale5) * 0.54,
         rotation: route4to5.dropAngle,
         duration: 1.2,
         ease: 'power1.in',
       });
 
       // Step 2: Bottom-left turn, banking into the bottom curve (1.20 -> 2.10)
-      // Bottle 3: Tilts left into the bottom turn (-20.0°)
       masterTl.to(bottleContainer, {
-        x: startX + 35,
-        y: deltaY5 * route4to5.bottomSwoopY,
-        scale: (p4.bottleScale + landing5.scale) * 0.49,
+        x: offsetX4 + 35 * curveScaleX,
+        y: offsetY4 + dy4to5 * route4to5.bottomSwoopY,
+        scale: (scale4 + scale5) * 0.49,
         rotation: route4to5.turnAngle,
         duration: 0.9,
         ease: 'none',
       });
 
       // Step 3: Diagonal climb across middle of Page 5 (2.10 -> 3.20)
-      // Bottle 4: Leans forward up the diagonal slope (+32.0°)
       masterTl.to(bottleContainer, {
-        x: (startX + landing5.x) * 0.22,
-        y: deltaY5 * 0.75,
-        scale: (p4.bottleScale + landing5.scale) * 0.45,
+        x: (offsetX4 + offsetX5) * 0.22,
+        y: offsetY4 + dy4to5 * 0.75,
+        scale: (scale4 + scale5) * 0.45,
         rotation: route4to5.climbAngle,
         duration: 1.1,
         ease: 'none',
       });
 
       // Step 4: Arching over the crest / wave peak before hand (3.20 -> 3.80)
-      // Bottle 5: Arches over the crest (-12.0°)
       masterTl.to(bottleContainer, {
-        x: landing5.x * 0.72,
-        y: deltaY5 * 0.88,
-        scale: (p4.bottleScale + landing5.scale) * 0.43,
+        x: offsetX5 * 0.72,
+        y: offsetY4 + dy4to5 * 0.88,
+        scale: (scale4 + scale5) * 0.43,
         rotation: route4to5.crestAngle,
         duration: 0.6,
         ease: 'none',
       });
 
       // Step 5: Fits snugly into girl's hand on Page 5 (3.80 -> 4.40)
-      // Bottle 6: Rotates into girl's hand grip (-39.5°)
       masterTl.to(bottleContainer, {
-        x: landing5.x,
-        y: deltaY5,
-        scale: landing5.scale,
+        x: offsetX5,
+        y: offsetY5,
+        scale: scale5,
         rotation: landing5.tilt,
         duration: 0.6,
         ease: 'power1.out',
@@ -236,9 +354,9 @@ export const Page4to6Experience: FC = () => {
       // Keeps bottle 100% stationary in her hand while viewing Page 5!
       // -------------------------------------------------------------------------
       masterTl.to(bottleContainer, {
-        x: landing5.x,
-        y: deltaY5,
-        scale: landing5.scale,
+        x: offsetX5,
+        y: offsetY5,
+        scale: scale5,
         rotation: landing5.tilt,
         duration: 1.2,
         ease: 'none',
@@ -249,9 +367,9 @@ export const Page4to6Experience: FC = () => {
       // -------------------------------------------------------------------------
       // Step 6: Leaves girl's hand, hugs down along the right side (5.60 -> 6.80)
       masterTl.to(bottleContainer, {
-        x: landing5.x + route5to6.rightSwoopOffset,
-        y: deltaY5 + (deltaY6 - deltaY5) * 0.35,
-        scale: (landing5.scale + landing6.scale) * 0.48,
+        x: offsetX5 + route5to6.rightSwoopOffset * curveScaleX,
+        y: offsetY5 + dy5to6 * 0.35,
+        scale: (scale5 + scale6) * 0.48,
         rotation: route5to6.exitHandAngle,
         duration: 1.2,
         ease: 'power1.in',
@@ -259,36 +377,36 @@ export const Page4to6Experience: FC = () => {
 
       // Step 7: Sweeps down and inward toward center of Page 6 (6.80 -> 8.00)
       masterTl.to(bottleContainer, {
-        x: (landing5.x + landing6.x) * 0.5 + 35,
-        y: deltaY5 + (deltaY6 - deltaY5) * 0.72,
-        scale: (landing5.scale + landing6.scale) * 0.55,
+        x: (offsetX5 + offsetX6) * 0.5 + 35 * curveScaleX,
+        y: offsetY5 + dy5to6 * 0.72,
+        scale: (scale5 + scale6) * 0.55,
         rotation: route5to6.midwayDiveAngle,
         duration: 1.2,
         ease: 'none',
       });
 
-      // Step 8: Touchdown on Page 6 fridge shelf, upright & enlarged (8.00 -> 8.80)
+      // Step 8: Touchdown directly on Page 6 metal fridge rack, upright (8.00 -> 8.80)
       // 🍾 BOTTLE LANDING ANIMATION IS 100% COMPLETE HERE!
       masterTl.to(bottleContainer, {
-        x: landing6.x,
-        y: deltaY6,
-        scale: landing6.scale,
+        x: offsetX6,
+        y: offsetY6,
+        scale: scale6,
         rotation: landing6.tilt,
         duration: 0.8,
         ease: 'power1.out',
       });
 
       // Step 9: AFTER BOTTLE LAND ANIMATION COMPLETES:
-      // Bottle rests parked on shelf while on continued scroll:
+      // Bottle rests parked on metal rack while on continued scroll:
       //  - Top-left title "WHY US" reveals
       //  - 2 paragraphs slide in from LEFT
       //  - 2 paragraphs slide in from RIGHT (8.80 -> 10.00)
       masterTl.to(
         bottleContainer,
         {
-          x: landing6.x,
-          y: deltaY6,
-          scale: landing6.scale,
+          x: offsetX6,
+          y: offsetY6,
+          scale: scale6,
           rotation: landing6.tilt,
           duration: 1.2,
           ease: 'none',
@@ -324,8 +442,18 @@ export const Page4to6Experience: FC = () => {
       }
     }, trackRef);
 
-    return () => ctx.revert();
+    const rafId = requestAnimationFrame(() => {
+      ScrollTrigger.sort();
+      ScrollTrigger.refresh();
+    });
+
+    return () => {
+      cancelAnimationFrame(rafId);
+      ctx.revert();
+    };
   }, [
+    vw,
+    vh,
     p4.bottleX,
     p4.bottleY,
     p4.bottleScale,
@@ -384,7 +512,12 @@ export const Page4to6Experience: FC = () => {
             ref={aboutTextRef}
             className="max-w-[560px] w-full text-left pointer-events-auto"
             style={{
-              transform: `translate(${aboutContent.offsetX}px, ${aboutContent.offsetY}px)`,
+              transform: `translate(${
+                flowMetrics.isMobile ? 0 : aboutContent.offsetX * flowMetrics.widthScale
+              }px, ${aboutContent.offsetY * flowMetrics.heightScale}px) scale(${
+                flowMetrics.isMobile ? 1 : flowMetrics.sideCardScale
+              })`,
+              transformOrigin: 'right center',
             }}
           >
             {/* Tagline / Botanical Badge */}
@@ -440,7 +573,12 @@ export const Page4to6Experience: FC = () => {
             ref={page5TextRef}
             className="max-w-[490px] lg:max-w-[520px] w-full text-left pointer-events-auto"
             style={{
-              transform: `translate(${p5Content.offsetX}px, ${p5Content.offsetY}px)`,
+              transform: `translate(${
+                flowMetrics.isMobile ? 0 : p5Content.offsetX * flowMetrics.widthScale
+              }px, ${p5Content.offsetY * flowMetrics.heightScale}px) scale(${
+                flowMetrics.isMobile ? 1 : flowMetrics.sideCardScale
+              })`,
+              transformOrigin: 'left center',
             }}
           >
             {/* Tagline / Botanical Badge */}
@@ -496,7 +634,13 @@ export const Page4to6Experience: FC = () => {
         {/* 🧊 PAGE 6: "WHY US" CONTENT (Top Left Title + 2 Left Paras + 2 Right Paras) */}
         <div ref={page6ContainerRef} className="absolute inset-0 w-full h-full pointer-events-none z-20">
           {/* Top Left Title */}
-          <div className="absolute top-6 sm:top-10 lg:top-12 left-6 sm:left-10 lg:left-14 text-left pointer-events-auto">
+          <div
+            className="absolute top-6 sm:top-10 lg:top-12 left-6 sm:left-10 lg:left-14 text-left pointer-events-auto"
+            style={{
+              transform: `scale(${flowMetrics.isMobile ? 0.92 : flowMetrics.sideCardScale})`,
+              transformOrigin: 'top left',
+            }}
+          >
             <div className="why-us-title inline-flex items-center gap-2 px-3 py-1 rounded-full bg-lime-500/15 border border-lime-500/30 backdrop-blur-md mb-2">
               <span className="w-2 h-2 rounded-full bg-lime-400 animate-pulse" />
               <span className="text-lime-400 font-mono text-xs uppercase tracking-[0.2em] font-semibold">
@@ -509,7 +653,13 @@ export const Page4to6Experience: FC = () => {
           </div>
 
           {/* 👈 2 Paras from Left (Beside the Bottle - Clean Text Only, No Black Card) */}
-          <div className="absolute left-6 sm:left-10 lg:left-14 top-[56%] -translate-y-1/2 max-w-[310px] sm:max-w-[360px] flex flex-col gap-6 text-left pointer-events-auto">
+          <div
+            className="hidden sm:flex absolute left-6 sm:left-10 lg:left-14 top-[56%] -translate-y-1/2 max-w-[310px] sm:max-w-[360px] flex-col gap-6 text-left pointer-events-auto"
+            style={{
+              transform: `scale(${flowMetrics.sideCardScale})`,
+              transformOrigin: 'left center',
+            }}
+          >
             {/* Left Para 1 */}
             <div className="why-us-left">
               <div className="flex items-center gap-2 mb-1.5">
@@ -538,7 +688,13 @@ export const Page4to6Experience: FC = () => {
           </div>
 
           {/* 👉 2 Paras from Right (Beside the Bottle - Clean Text Only, No Black Card) */}
-          <div className="absolute right-6 sm:right-10 lg:right-14 top-[56%] -translate-y-1/2 max-w-[310px] sm:max-w-[360px] flex flex-col gap-6 text-left pointer-events-auto">
+          <div
+            className="hidden sm:flex absolute right-6 sm:right-10 lg:right-14 top-[56%] -translate-y-1/2 max-w-[310px] sm:max-w-[360px] flex-col gap-6 text-left pointer-events-auto"
+            style={{
+              transform: `scale(${flowMetrics.sideCardScale})`,
+              transformOrigin: 'right center',
+            }}
+          >
             {/* Right Para 1 */}
             <div className="why-us-right">
               <div className="flex items-center gap-2 mb-1.5">
@@ -573,9 +729,6 @@ export const Page4to6Experience: FC = () => {
       {/* ========================================================================= */}
       <div
         className="absolute top-0 left-0 w-full h-screen flex items-center justify-center pointer-events-none z-30"
-        style={{
-          top: `${p4.bottleY}px`,
-        }}
       >
         <div
           ref={bottleContainerRef}
@@ -596,8 +749,10 @@ export const Page4to6Experience: FC = () => {
             <img
               src="/btm-btl.png"
               alt="Traveling Shake & Gulp Bottle"
-              className="w-auto max-h-[82vh] max-w-[90vw] sm:max-w-[520px] object-contain drop-shadow-[0_20px_35px_rgba(0,0,0,0.65)] select-none pointer-events-none"
+              className="object-contain drop-shadow-[0_20px_35px_rgba(0,0,0,0.65)] select-none pointer-events-none"
               style={{
+                height: `${flowMetrics.baseBottleHeightPx}px`,
+                width: 'auto',
                 transform: 'translateZ(0)',
                 WebkitTransform: 'translateZ(0)',
               }}

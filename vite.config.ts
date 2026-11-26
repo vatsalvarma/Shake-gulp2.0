@@ -9,8 +9,26 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 /**
- * Ensures all public asset paths (e.g. "/bg9.png", "/bottle.png") in the compiled
- * bundle are automatically prefixed with the GitHub Pages base repository path
+ * Recursively collects all relative web paths inside `public/`
+ * (e.g., "bg9.png", "assets/images/Barley-544x652.png", "drinks/images/water.jpeg").
+ */
+function getAllPublicFiles(dir: string, rootDir: string = dir): string[] {
+  let results: string[] = [];
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const fullPath = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      results = results.concat(getAllPublicFiles(fullPath, rootDir));
+    } else {
+      const rel = path.relative(rootDir, fullPath).split(path.sep).join('/');
+      results.push(rel);
+    }
+  }
+  return results;
+}
+
+/**
+ * Ensures all public asset paths (e.g. "/bg9.png", "/drinks/images/water.jpeg") in the
+ * compiled production bundle are automatically prefixed with the GitHub Pages base path
  * so no images are ever broken or forgotten on GitHub Pages.
  */
 function githubPagesAssetPlugin(base: string): Plugin {
@@ -20,10 +38,12 @@ function githubPagesAssetPlugin(base: string): Plugin {
       if (!base || base === '/' || base === './') return null;
       const publicDir = path.resolve(__dirname, 'public');
       if (!fs.existsSync(publicDir)) return null;
-      const files = fs.readdirSync(publicDir);
+      const files = getAllPublicFiles(publicDir);
       if (files.length === 0) return null;
 
+      // Sort longest paths first so nested paths match before shorter substrings
       const filePattern = files
+        .sort((a, b) => b.length - a.length)
         .map((f) => f.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
         .join('|');
 

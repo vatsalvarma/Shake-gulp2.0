@@ -29,7 +29,7 @@ export const PAGE6_CONFIG = {
 // =========================================================================
 export const PAGE6_BOTTLE_LANDING = {
   x: 10,         // 👈 Center horizontally on the fridge shelf in px from center
-  y: 95,         // 👈 Vertical position in px from center (rests on bottom metal rack)
+  y: 105,         // 👈 Vertical position in px from center (rests on bottom metal rack)
   scale: 0.78,   // 👈 Large bottle size in foreground (matching reference photo)
   tilt: 0.0,     // 👈 Upright angle in degrees
 };

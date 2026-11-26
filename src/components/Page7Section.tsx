@@ -1,5 +1,11 @@
 import { type FC } from 'react';
 import { ArrowRight } from 'lucide-react';
+import {
+  getUiScale,
+  projectCoverPoint,
+  RESPONSIVE_SCREEN_CONFIG,
+  useViewportSize,
+} from '../utils/responsiveLayout';
 
 // =========================================================================
 // 🎛️ PAGE 7 CONFIGURATION (Adjust Manually Here)
@@ -40,7 +46,11 @@ export const PAGE7_CONFIG = {
   buttonText: 'EXPLORE NOW', // Text inside the button
 };
 
-export const Page7Section: FC = () => {
+interface Page7SectionProps {
+  onSelectDrink?: (slug: string) => void;
+}
+
+export const Page7Section: FC<Page7SectionProps> = ({ onSelectDrink }) => {
   const {
     movePage7Up,
     bgFit,
@@ -64,11 +74,59 @@ export const Page7Section: FC = () => {
 
   const fitClass = bgFit === 'contain' ? 'object-contain' : 'object-cover';
 
-  // Smooth scroll down to next page when clicked
+  const { vw, vh } = useViewportSize();
+  const uiScale = getUiScale(vw, vh);
+  const { referenceWidth: refW, referenceHeight: refH } = RESPONSIVE_SCREEN_CONFIG;
+
+  const buttonMetrics = (() => {
+    const scaleFactor = uiScale.isMobile ? Math.max(vw / 560, 0.58) : uiScale.sideCardScale;
+    const effectiveScale = buttonScale * scaleFactor;
+    const refOffsetY = buttonsOffsetY * uiScale.heightScale;
+
+    if (uiScale.isMobile) {
+      return {
+        leftX: `${Math.max(22, leftButtonLeftPercent)}%`,
+        rightX: `${Math.min(78, rightButtonLeftPercent)}%`,
+        topY: `calc(${buttonsTopPercent}% + ${refOffsetY}px)`,
+        scale: effectiveScale,
+      };
+    }
+
+    const leftProj = projectCoverPoint(
+      vw,
+      vh,
+      1900,
+      828,
+      0.5,
+      0.5,
+      (leftButtonLeftPercent / 100) * refW,
+      (buttonsTopPercent / 100) * refH + buttonsOffsetY
+    );
+    const rightProj = projectCoverPoint(
+      vw,
+      vh,
+      1900,
+      828,
+      0.5,
+      0.5,
+      (rightButtonLeftPercent / 100) * refW,
+      (buttonsTopPercent / 100) * refH + buttonsOffsetY
+    );
+
+    return {
+      leftX: `${Math.max(leftProj.x, vw * 0.14)}px`,
+      rightX: `${Math.min(rightProj.x, vw * 0.86)}px`,
+      topY: `${leftProj.y}px`,
+      scale: effectiveScale,
+    };
+  })();
+
+  // Redirect to 1st Traditional Drink (Jeera Buttermilk) when either button is clicked
   const handleExploreClick = () => {
-    const elem = document.getElementById('page8') || document.getElementById('benefits');
-    if (elem) {
-      elem.scrollIntoView({ behavior: 'smooth' });
+    if (onSelectDrink) {
+      onSelectDrink('jeera-buttermilk');
+    } else {
+      window.location.hash = '#/drink/jeera-buttermilk';
     }
   };
 
@@ -99,9 +157,9 @@ export const Page7Section: FC = () => {
       <div
         className="absolute z-30 pointer-events-auto"
         style={{
-          top: `${buttonsTopPercent}%`,
-          left: `${leftButtonLeftPercent}%`,
-          transform: `translate(-50%, calc(-50% + ${buttonsOffsetY}px)) scale(${buttonScale})`,
+          top: buttonMetrics.topY,
+          left: buttonMetrics.leftX,
+          transform: `translate(-50%, -50%) scale(${buttonMetrics.scale})`,
         }}
       >
         <div className="relative group">
@@ -146,9 +204,9 @@ export const Page7Section: FC = () => {
       <div
         className="absolute z-30 pointer-events-auto"
         style={{
-          top: `${buttonsTopPercent}%`,
-          left: `${rightButtonLeftPercent}%`,
-          transform: `translate(-50%, calc(-50% + ${buttonsOffsetY}px)) scale(${buttonScale})`,
+          top: buttonMetrics.topY,
+          left: buttonMetrics.rightX,
+          transform: `translate(-50%, -50%) scale(${buttonMetrics.scale})`,
         }}
       >
         <div className="relative group">

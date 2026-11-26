@@ -2,6 +2,11 @@ import { useRef, useEffect, type FC } from 'react';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { ArrowRight, Sparkles } from 'lucide-react';
+import {
+  getUiScale,
+  RESPONSIVE_SCREEN_CONFIG,
+  useViewportSize,
+} from '../utils/responsiveLayout';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -54,7 +59,11 @@ export const PAGE8_CONFIG = {
   buttonText: 'EXPLORE', // Button label
 };
 
-export const Page8Section: FC = () => {
+interface Page8SectionProps {
+  onSelectDrink?: (slug: string) => void;
+}
+
+export const Page8Section: FC<Page8SectionProps> = ({ onSelectDrink }) => {
   const sectionRef = useRef<HTMLElement | null>(null);
   const bottleGroupRef = useRef<HTMLDivElement | null>(null);
   const bottleRef = useRef<HTMLImageElement | null>(null);
@@ -67,6 +76,9 @@ export const Page8Section: FC = () => {
   const textRef = useRef<HTMLHeadingElement | null>(null);
   const lineRef = useRef<HTMLDivElement | null>(null);
   const buttonRef = useRef<HTMLDivElement | null>(null);
+
+  const { vw, vh } = useViewportSize();
+  const uiScale = getUiScale(vw, vh);
 
   const {
     movePage8Up,
@@ -106,11 +118,12 @@ export const Page8Section: FC = () => {
 
   const fitClass = bgFit === 'contain' ? 'object-contain' : 'object-cover';
 
-  // Smooth scroll down to explore section when button is clicked
+  // Redirect to 1st Wellness Drink (Ginger Shot) when Explore button is clicked
   const handleExploreClick = () => {
-    const elem = document.getElementById('benefits') || document.getElementById('drinks');
-    if (elem) {
-      elem.scrollIntoView({ behavior: 'smooth' });
+    if (onSelectDrink) {
+      onSelectDrink('ginger-shot');
+    } else {
+      window.location.hash = '#/drink/ginger-shot';
     }
   };
 
@@ -136,10 +149,11 @@ export const Page8Section: FC = () => {
           pin: true,
           pinSpacing: true,
           scrub: 0.25,
-          anticipatePin: 0,
+          anticipatePin: 1,
           fastScrollEnd: true,
           preventOverlaps: true,
           invalidateOnRefresh: true,
+          refreshPriority: 1,
         },
       });
 
@@ -362,10 +376,15 @@ export const Page8Section: FC = () => {
     exitRotation,
   ]);
 
-  // Derived styles for bottle & hand placement
-  // Bottle aspect ratio is 1024 / 1536 (2/3)
-  const bottleWidthVh = (bottleHeightVh * (1024 / 1536)).toFixed(2);
+  // Derived styles for bottle & hand placement (keeping 1536 x 695 identical while scaling offsets on small/large screens)
+  const rawHeightRatio = vh / RESPONSIVE_SCREEN_CONFIG.referenceHeight;
+  const effectiveBottleHeightVh =
+    uiScale.isMobile ? Math.min(bottleHeightVh, 56) : bottleHeightVh;
+  const bottleWidthVh = (effectiveBottleHeightVh * (1024 / 1536)).toFixed(2);
   const handWidthVh = (parseFloat(bottleWidthVh) * handScaleMultiplier).toFixed(2);
+  const responsiveTextOffsetY = textOffsetY * rawHeightRatio;
+  const responsiveTextScale =
+    textScale * (uiScale.isMobile ? 0.85 : uiScale.sideCardScale);
 
   // Split title into individual characters for letter-by-letter write-in
   const characters = titleText.split('');
@@ -397,11 +416,11 @@ export const Page8Section: FC = () => {
       {/* ========================================================================= */}
       <div
         ref={centerContentRef}
-        className="absolute z-35 flex flex-col items-center justify-center text-center px-4 pointer-events-auto"
+        className="absolute z-35 w-max max-w-[96vw] flex flex-col items-center justify-center text-center px-4 pointer-events-auto"
         style={{
           top: `${textTopPercent}%`,
           left: '50%',
-          transform: `translate(-50%, calc(-50% + ${textOffsetY}px)) scale(${textScale})`,
+          transform: `translate(-50%, calc(-50% + ${responsiveTextOffsetY}px)) scale(${responsiveTextScale})`,
         }}
       >
         {/* Eyebrow Pill */}
@@ -413,10 +432,14 @@ export const Page8Section: FC = () => {
           <span>100% RAW • COLD-PRESSED BOTANICALS</span>
         </div>
 
-        {/* Headline: "EXPLORE WELLNESS SHOTS" with Letter-by-Letter Write-In */}
+        {/* Headline: "EXPLORE WELLNESS SHOTS" on 1 single line with Letter-by-Letter Write-In */}
         <h2
           ref={textRef}
-          className="text-3xl sm:text-5xl md:text-6xl font-black tracking-tight text-white drop-shadow-[0_4px_25px_rgba(0,0,0,0.85)] select-none flex flex-wrap justify-center items-center"
+          className="font-black tracking-tight text-white drop-shadow-[0_4px_25px_rgba(0,0,0,0.85)] select-none flex flex-nowrap justify-center items-center whitespace-nowrap"
+          style={{
+            fontSize: 'clamp(1.2rem, 4.2vw, 3.75rem)',
+            lineHeight: 1.1,
+          }}
         >
           {characters.map((char, i) => (
             <span
@@ -471,10 +494,10 @@ export const Page8Section: FC = () => {
         ref={bottleGroupRef}
         className="absolute pointer-events-none select-none"
         style={{
-          left: `calc(50% + ${bottleOffsetX}px)`,
-          bottom: `calc(${bottleLedgeBottomPercent}% + ${bottleOffsetY}px)`,
+          left: `calc(50% + ${bottleOffsetX * uiScale.widthScale}px)`,
+          bottom: `calc(${bottleLedgeBottomPercent}% + ${bottleOffsetY * uiScale.heightScale}px)`,
           width: `${bottleWidthVh}vh`,
-          height: `${bottleHeightVh}vh`,
+          height: `${effectiveBottleHeightVh}vh`,
           transform: 'translateX(-50%)',
           zIndex: 20,
         }}
@@ -504,7 +527,7 @@ export const Page8Section: FC = () => {
             left: `${handOffsetXPercent}%`,
             top: `${handOffsetYPercent}%`,
             width: `${handWidthVh}vh`,
-            transform: `translate(${handFineTuneX}px, ${handFineTuneY}px)`,
+            transform: `translate(${handFineTuneX * uiScale.widthScale}px, ${handFineTuneY * uiScale.heightScale}px)`,
           }}
         >
           <img

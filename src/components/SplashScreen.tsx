@@ -51,6 +51,9 @@ export const PRELOAD_IMAGE_URLS: string[] = [
   // Page 3 (BottleShowcaseSection)
   '/btm-btl.png',
   '/bottle3.1.png',
+  '/bottle3.2.png',
+  '/bottle3.3.png',
+  '/bottle3.4.png',
   '/bg3.1.png',
 
   // Page 4, 5, 6 (Page4to6Experience)
@@ -99,15 +102,19 @@ export const SplashScreen: FC<SplashScreenProps> = ({ onComplete }) => {
   };
 
   useEffect(() => {
-    // 1. Lock scroll during splash screen
-    const originalOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-
+    // 1. Intercept user scroll input during splash without setting body overflow:hidden
+    //    (changing body overflow breaks Chromium scroll restoration & GSAP pin calculations on reload)
     const preventScroll = (e: Event) => {
       e.preventDefault();
     };
+    const preventScrollKeys = (e: KeyboardEvent) => {
+      if (['ArrowUp', 'ArrowDown', 'Space', 'PageUp', 'PageDown', 'Home', 'End'].includes(e.code)) {
+        e.preventDefault();
+      }
+    };
     window.addEventListener('wheel', preventScroll, { passive: false });
     window.addEventListener('touchmove', preventScroll, { passive: false });
+    window.addEventListener('keydown', preventScrollKeys, { passive: false });
 
     startTimeRef.current = Date.now();
     const totalImages = PRELOAD_IMAGE_URLS.length;
@@ -179,13 +186,15 @@ export const SplashScreen: FC<SplashScreenProps> = ({ onComplete }) => {
         setIsFadingOut(true);
 
         setTimeout(() => {
-          // Unlock scroll
           window.removeEventListener('wheel', preventScroll);
           window.removeEventListener('touchmove', preventScroll);
-          document.body.style.overflow = originalOverflow || '';
+          window.removeEventListener('keydown', preventScrollKeys);
 
-          // Refresh ScrollTrigger so all pins and triggers recalculate with loaded image dimensions
-          ScrollTrigger.refresh();
+          // Refresh ScrollTrigger in strict priority order once all preloaded images settle
+          requestAnimationFrame(() => {
+            ScrollTrigger.sort();
+            ScrollTrigger.refresh();
+          });
 
           if (onComplete) {
             onComplete();
@@ -209,7 +218,7 @@ export const SplashScreen: FC<SplashScreenProps> = ({ onComplete }) => {
       clearTimeout(exitTimer);
       window.removeEventListener('wheel', preventScroll);
       window.removeEventListener('touchmove', preventScroll);
-      document.body.style.overflow = originalOverflow || '';
+      window.removeEventListener('keydown', preventScrollKeys);
     };
   }, [onComplete]);
 

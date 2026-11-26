@@ -5,6 +5,12 @@ import Lenis from 'lenis';
 import { ArrowRight } from 'lucide-react';
 import { WaterSplashEffect, type WaterSplashRef } from './WaterSplashEffect';
 import { soundFx } from '../utils/soundEffects';
+import {
+  getUiScale,
+  projectCoverPoint,
+  RESPONSIVE_SCREEN_CONFIG,
+  useViewportSize,
+} from '../utils/responsiveLayout';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -139,7 +145,7 @@ export const INGREDIENT_BADGES = [
 // Adjust positions, text, offsets, and scale anytime:
 // =========================================================================
 export const PAGE2_HERO_CARDS_CONFIG = {
-  // Left Hero Card (Traditional Drinks -> redirects to Page 7):
+  // Left Hero Card (Traditional Drinks -> redirects to Jeera Buttermilk):
   leftCardLeftPercent: 6.5, // Distance from left edge of screen (%)
   leftCardTopPercent: 50.0, // Vertical position from top (%)
   leftCardOffsetY: 0, // Fine-tune up (-) or down (+) in px
@@ -148,8 +154,9 @@ export const PAGE2_HERO_CARDS_CONFIG = {
   leftParaLine2: 'Pure probiotic buttermilk and restorative lassis for gut health.',
   leftButtonText: 'EXPLORE NOW',
   leftTargetId: 'page7',
+  leftDrinkSlug: 'jeera-buttermilk',
 
-  // Right Hero Card (Wellness Drinks -> redirects to Page 8):
+  // Right Hero Card (Wellness Drinks -> redirects to Ginger Shot):
   rightCardRightPercent: 6.5, // Distance from right edge of screen (%)
   rightCardTopPercent: 50.0, // Vertical position from top (%)
   rightCardOffsetY: 0, // Fine-tune up (-) or down (+) in px
@@ -158,6 +165,7 @@ export const PAGE2_HERO_CARDS_CONFIG = {
   rightParaLine2: 'Wild forest amla shots engineered for immunity and daily vitality.',
   rightButtonText: 'EXPLORE NOW',
   rightTargetId: 'page8',
+  rightDrinkSlug: 'ginger-shot',
 
   // Shared Card Dimensions & Scale:
   cardMaxWidth: 'clamp(260px, 22vw, 340px)',
@@ -168,9 +176,10 @@ export const PAGE2_HERO_CARDS_CONFIG = {
 interface HeroExperienceProps {
   onExploreProduct?: () => void;
   onAddToCart?: () => void;
+  onSelectDrink?: (slug: string) => void;
 }
 
-export const HeroExperience: FC<HeroExperienceProps> = () => {
+export const HeroExperience: FC<HeroExperienceProps> = ({ onSelectDrink }) => {
   const trackRef = useRef<HTMLDivElement | null>(null);
   const page1Ref = useRef<HTMLDivElement | null>(null);
   const page2Ref = useRef<HTMLDivElement | null>(null);
@@ -221,7 +230,7 @@ export const HeroExperience: FC<HeroExperienceProps> = () => {
     leftParaLine1,
     leftParaLine2,
     leftButtonText,
-    leftTargetId,
+    leftDrinkSlug,
     rightCardRightPercent,
     rightCardTopPercent,
     rightCardOffsetY,
@@ -229,27 +238,171 @@ export const HeroExperience: FC<HeroExperienceProps> = () => {
     rightParaLine1,
     rightParaLine2,
     rightButtonText,
-    rightTargetId,
+    rightDrinkSlug,
     cardMaxWidth,
     cardScale,
     buttonScale,
   } = PAGE2_HERO_CARDS_CONFIG;
 
-  // Smooth scroll handler for hero card buttons
-  const handleScrollToTarget = (targetId: string) => {
-    const elem = document.getElementById(targetId);
-    if (elem) {
-      elem.scrollIntoView({ behavior: 'smooth' });
+  // Redirect handler for Page 2 hero card Explore Now buttons -> Drink Detail Page
+  const handleDrinkRedirect = (slug: string) => {
+    if (onSelectDrink) {
+      onSelectDrink(slug);
+    } else {
+      window.location.hash = `#/drink/${slug}`;
     }
   };
 
-  // Live Orbit Radius & Center Coordinates
-  const ingredientRadius =
-    typeof window !== 'undefined' && window.innerWidth < 768
-      ? INGREDIENTS_CONFIG.radiusMobile
-      : INGREDIENTS_CONFIG.radiusDesktop;
+  // Track live viewport dimensions so bottle landings & scale recalculate cleanly across screens
+  const { vw, vh } = useViewportSize();
+  const uiScale = getUiScale(vw, vh);
+  const isMobile = uiScale.isMobile;
+
+  // Live Orbit Radius (kept at configured px inside the scaled orbit wrapper)
+  const ingredientRadius = isMobile
+    ? INGREDIENTS_CONFIG.radiusMobile
+    : INGREDIENTS_CONFIG.radiusDesktop;
   const orbitCenterTop = INGREDIENTS_CONFIG.orbitCenterTopPercent;
   const orbitCenterLeft = INGREDIENTS_CONFIG.orbitCenterLeftPercent;
+
+  // Compute responsive Hero & Page 2 metrics locked to background2.png / background.png (1672x941, posY=0.40).
+  // At user's normal reference screen (1536 x 695), every coordinate & size resolves 1:1 with BOTTLE_CONFIG.
+  const normPage2Top = page2TopVh > 100 ? page2TopVh - 100 : page2TopVh;
+  const { referenceWidth: refW, referenceHeight: refH, smallScreen } = RESPONSIVE_SCREEN_CONFIG;
+  const heroMetrics = (() => {
+    const startLeftPct = isMobile ? heroLeft - 3 : heroLeft;
+    const startTopVh = isMobile ? heroTopVh + 2 : heroTopVh;
+    const targetTopVhMobile = normPage2Top + 1;
+
+    if (isMobile) {
+      const bottleHeightPx = Math.min(vh * 0.42, vw * 0.85);
+      const bottleWidthPx = bottleHeightPx * (291.84 / 320);
+      const heroLeftPx = (startLeftPct / 100) * vw;
+      const heroCenterYPx = (startTopVh / 100) * vh;
+      const p2FootYPx = ((targetTopVhMobile + 23.02) / 100) * vh;
+      const p2CenterYPx = p2FootYPx - bottleHeightPx / 2;
+      const p2LeftPx = (page2Left / 100) * vw;
+      const mobileScale = Math.min(vw / 420, 0.95);
+
+      return {
+        bottleWidthPx,
+        bottleHeightPx,
+        heroLeftPx,
+        heroStartTopInPage2Px: heroCenterYPx - vh,
+        p2CenterXPx: p2LeftPx,
+        p2CenterYPx,
+        deltaXPx: p2LeftPx - heroLeftPx,
+        deltaYPx: p2CenterYPx - (heroCenterYPx - vh),
+        rockLeftPx: heroLeftPx,
+        rockTopPx: ((startTopVh + 21) / 100) * vh,
+        rockWidthPx: 200 * mobileScale,
+        rockHeightPx: 40 * mobileScale,
+        shadowLeftPx: p2LeftPx,
+        shadowTopPx: (page2ShadowTop / 100) * vh,
+        shadowWidthPx: page2ShadowWidth * mobileScale * 0.8,
+        shadowHeightPx: page2ShadowHeight * mobileScale * 0.8,
+        orbitLeftPx: (orbitCenterLeft / 100) * vw,
+        orbitTopPx: (orbitCenterTop / 100) * vh,
+        orbitScale: mobileScale,
+        leftCardEdgePercent: smallScreen.minSideEdgePercent,
+        rightCardEdgePercent: smallScreen.minSideEdgePercent,
+        leftCardScale: cardScale * uiScale.sideCardScale,
+        rightCardScale: cardScale * uiScale.sideCardScale,
+        cardMaxWidthCss: cardMaxWidth,
+        heightScale: uiScale.heightScale,
+      };
+    }
+
+    // Desktop & laptop viewports (>= 768px): project exact reference points via background cover box (1672x941, center 40%)
+    const refHeroX = (heroLeft / 100) * refW;
+    const refHeroY = (heroTopVh / 100) * refH;
+    const refP2CenterX = (page2Left / 100) * refW;
+    const refP2FootY = (normPage2Top / 100) * refH + 160; // At 695px, bottle height is 320px -> half = 160px
+
+    const heroProj = projectCoverPoint(vw, vh, 1672, 941, 0.5, 0.4, refHeroX, refHeroY);
+    const p2FootProj = projectCoverPoint(vw, vh, 1672, 941, 0.5, 0.4, refP2CenterX, refP2FootY);
+    const rockProj = projectCoverPoint(
+      vw,
+      vh,
+      1672,
+      941,
+      0.5,
+      0.4,
+      refHeroX,
+      ((heroTopVh + 21) / 100) * refH
+    );
+    const shadowProj = projectCoverPoint(
+      vw,
+      vh,
+      1672,
+      941,
+      0.5,
+      0.4,
+      (page2ShadowLeft / 100) * refW,
+      (page2ShadowTop / 100) * refH
+    );
+    const orbitProj = projectCoverPoint(
+      vw,
+      vh,
+      1672,
+      941,
+      0.5,
+      0.4,
+      (orbitCenterLeft / 100) * refW,
+      (orbitCenterTop / 100) * refH
+    );
+
+    const bgScaleRatio = p2FootProj.scaleRatio; // 1.000 at user's normal 1536 x 695 viewport
+    const bottleHeightPx = 320 * bgScaleRatio;
+    const bottleWidthPx = 291.84 * bgScaleRatio;
+
+    const clampedHeroX = Math.min(Math.max(heroProj.x, vw * 0.14), vw * 0.88);
+    const p2CenterYPx = p2FootProj.y - bottleHeightPx / 2;
+    const heroStartTopInPage2Px = heroProj.y - vh;
+
+    // Gentle side card edge adjustment for tighter tablet/small-laptop viewports; preserves 6.5% on normal/large screens
+    const edgeInsetPct =
+      vw < 1380
+        ? smallScreen.minSideEdgePercent +
+          ((vw - 768) / (1380 - 768)) *
+            (leftCardLeftPercent - smallScreen.minSideEdgePercent)
+        : leftCardLeftPercent;
+    const rightInsetPct =
+      vw < 1380
+        ? smallScreen.minSideEdgePercent +
+          ((vw - 768) / (1380 - 768)) *
+            (rightCardRightPercent - smallScreen.minSideEdgePercent)
+        : rightCardRightPercent;
+
+    return {
+      bottleWidthPx,
+      bottleHeightPx,
+      heroLeftPx: clampedHeroX,
+      heroStartTopInPage2Px,
+      p2CenterXPx: p2FootProj.x,
+      p2CenterYPx,
+      deltaXPx: p2FootProj.x - clampedHeroX,
+      deltaYPx: p2CenterYPx - heroStartTopInPage2Px,
+      rockLeftPx: clampedHeroX,
+      rockTopPx: rockProj.y,
+      rockWidthPx: 280 * bgScaleRatio,
+      rockHeightPx: 55 * bgScaleRatio,
+      shadowLeftPx: shadowProj.x,
+      shadowTopPx: shadowProj.y,
+      shadowWidthPx: page2ShadowWidth * bgScaleRatio,
+      shadowHeightPx: page2ShadowHeight * bgScaleRatio,
+      orbitLeftPx: orbitProj.x,
+      orbitTopPx: orbitProj.y,
+      orbitScale: bgScaleRatio,
+      leftCardEdgePercent: edgeInsetPct,
+      rightCardEdgePercent: rightInsetPct,
+      leftCardScale: cardScale * uiScale.sideCardScale,
+      rightCardScale: cardScale * uiScale.sideCardScale,
+      cardMaxWidthCss:
+        uiScale.isLargeScreen ? `calc(${cardMaxWidth} * ${uiScale.sideCardScale})` : cardMaxWidth,
+      heightScale: uiScale.heightScale,
+    };
+  })();
 
   // Precalculate badge radial coordinates around center (0, 0)
   const badgeCoordinates = INGREDIENT_BADGES.map((b) => {
@@ -269,8 +422,10 @@ export const HeroExperience: FC<HeroExperienceProps> = () => {
   const arcEndY = Math.round(-ingredientRadius * Math.cos(arcRadEnd));
   const arcPathD = `M ${arcStartX} ${arcStartY} A ${ingredientRadius} ${ingredientRadius} 0 0 1 ${arcEndX} ${arcEndY}`;
 
+  const lenisRef = useRef<Lenis | null>(null);
+
+  // 1. Mount-only Lenis momentum scroll so resizes never tear down scroll smoothing
   useEffect(() => {
-    // 1. Ultra-responsive, buttery Lenis momentum scroll
     const lenis = new Lenis({
       duration: 1.0,
       easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
@@ -280,6 +435,8 @@ export const HeroExperience: FC<HeroExperienceProps> = () => {
       touchMultiplier: 1.5,
     });
 
+    lenisRef.current = lenis;
+    (window as unknown as { __lenis?: Lenis }).__lenis = lenis;
     lenis.on('scroll', ScrollTrigger.update);
 
     const tickerCallback = (time: number) => {
@@ -289,6 +446,17 @@ export const HeroExperience: FC<HeroExperienceProps> = () => {
     gsap.ticker.add(tickerCallback);
     gsap.ticker.lagSmoothing(0);
 
+    return () => {
+      gsap.ticker.remove(tickerCallback);
+      lenis.destroy();
+      lenisRef.current = null;
+      if ((window as unknown as { __lenis?: Lenis }).__lenis === lenis) {
+        delete (window as unknown as { __lenis?: Lenis }).__lenis;
+      }
+    };
+  }, []);
+
+  useEffect(() => {
     const page1 = page1Ref.current;
     const page2 = page2Ref.current;
     const bottle = bottleRef.current;
@@ -310,25 +478,11 @@ export const HeroExperience: FC<HeroExperienceProps> = () => {
 
     if (!page1 || !page2 || !bottle || !bottleImg) return;
 
-    const isMobile = window.innerWidth < 768;
-
-    const startLeft = isMobile ? heroLeft - 3 : heroLeft;
-    const startTopVh = isMobile ? heroTopVh + 2 : heroTopVh;
-
-    // Normalizing coordinates inside Page 2 (top: -40vh initially, 54.8vh on landing)
-    const normPage2Top = page2TopVh > 100 ? page2TopVh - 100 : page2TopVh;
-    const targetLeft = page2Left;
-    const targetTopVh = isMobile ? normPage2Top + 1 : normPage2Top;
-
-    // Displacement vectors
-    const deltaXvw = targetLeft - startLeft; // e.g. 50 - 77.5 = -27.5vw
-    const deltaYvh = targetTopVh - (startTopVh - 100); // e.g. 54.8 - (-40) = 94.8vh
-
-    // Initial base placement: Bottle is inside Page 2 at top: (startTopVh - 100)vh = -40vh
-    // which places it exactly at 60vh on Page 1!
+    const ctx = gsap.context(() => {
+    // Initial base placement projected cleanly from Page 1 -> Page 2 landmarks
     gsap.set(bottle, {
-      left: `${startLeft}%`,
-      top: `${startTopVh - 100}vh`,
+      left: heroMetrics.heroLeftPx,
+      top: heroMetrics.heroStartTopInPage2Px,
       xPercent: -50,
       yPercent: -50,
       x: 0,
@@ -348,15 +502,15 @@ export const HeroExperience: FC<HeroExperienceProps> = () => {
 
     if (rockShadow) {
       gsap.set(rockShadow, {
-        left: `${startLeft}%`,
-        top: `${startTopVh + 21}vh`,
+        left: heroMetrics.rockLeftPx,
+        top: heroMetrics.rockTopPx,
         opacity: 0.85,
         force3D: true,
       });
     }
 
     gsap.set(stoneShadow, {
-      left: `${targetLeft}%`,
+      left: heroMetrics.shadowLeftPx,
       opacity: 0.05,
       scale: 0.4,
       force3D: true,
@@ -386,16 +540,9 @@ export const HeroExperience: FC<HeroExperienceProps> = () => {
       }
     });
 
-    let swayTweenLeft: gsap.core.Tween | null = null;
-    let swayTweenRight: gsap.core.Tween | null = null;
-    let swayTweenBottomLeft: gsap.core.Tween | null = null;
-    let introTweenLeft: gsap.core.Tween | null = null;
-    let introTweenRight: gsap.core.Tween | null = null;
-    let introTweenBottomLeft: gsap.core.Tween | null = null;
-
     // 🌿 Page Open Intro Animation: Leaves slide in strictly HORIZONTALLY from the sides
     if (leavesLeftIntro && leavesRightIntro) {
-      introTweenLeft = gsap.fromTo(
+      gsap.fromTo(
         leavesLeftIntro,
         { xPercent: -105, y: 0, opacity: 1 },
         {
@@ -408,7 +555,7 @@ export const HeroExperience: FC<HeroExperienceProps> = () => {
         }
       );
 
-      introTweenRight = gsap.fromTo(
+      gsap.fromTo(
         leavesRightIntro,
         { xPercent: 105, y: 0, opacity: 1 },
         {
@@ -423,7 +570,7 @@ export const HeroExperience: FC<HeroExperienceProps> = () => {
     }
 
     if (leavesBottomLeftIntro) {
-      introTweenBottomLeft = gsap.fromTo(
+      gsap.fromTo(
         leavesBottomLeftIntro,
         { xPercent: -105, y: 0, opacity: 1 },
         {
@@ -439,7 +586,7 @@ export const HeroExperience: FC<HeroExperienceProps> = () => {
 
     // 🍃 Ambient Natural Foliage Floating & Swaying Breeze
     if (leavesLeft && leavesRight) {
-      swayTweenLeft = gsap.to(leavesLeft, {
+      gsap.to(leavesLeft, {
         rotation: 2.2,
         y: 8,
         duration: 3.6,
@@ -448,7 +595,7 @@ export const HeroExperience: FC<HeroExperienceProps> = () => {
         ease: 'sine.inOut',
       });
 
-      swayTweenRight = gsap.to(leavesRight, {
+      gsap.to(leavesRight, {
         rotation: -2.2,
         y: 8,
         duration: 4.0,
@@ -459,7 +606,7 @@ export const HeroExperience: FC<HeroExperienceProps> = () => {
     }
 
     if (leavesBottomLeft) {
-      swayTweenBottomLeft = gsap.to(leavesBottomLeft, {
+      gsap.to(leavesBottomLeft, {
         rotation: 1.6,
         y: -6,
         duration: 3.8,
@@ -481,6 +628,9 @@ export const HeroExperience: FC<HeroExperienceProps> = () => {
         start: 'top top',
         end: 'bottom top',
         scrub: 0.4,
+        refreshPriority: 10,
+        invalidateOnRefresh: true,
+        fastScrollEnd: true,
         onUpdate: (self) => {
           const progress = self.progress;
 
@@ -570,7 +720,7 @@ export const HeroExperience: FC<HeroExperienceProps> = () => {
       .to(
         bottle,
         {
-          x: `${deltaXvw}vw`,
+          x: heroMetrics.deltaXPx,
           duration: 0.84,
           ease: 'sine.inOut',
         },
@@ -579,7 +729,7 @@ export const HeroExperience: FC<HeroExperienceProps> = () => {
       .to(
         bottle,
         {
-          y: `${deltaYvh}vh`,
+          y: heroMetrics.deltaYPx,
           duration: 0.84,
           ease: 'power2.in',
         },
@@ -695,6 +845,10 @@ export const HeroExperience: FC<HeroExperienceProps> = () => {
         pin: true,
         pinSpacing: true,
         scrub: 0.25,
+        anticipatePin: 1,
+        invalidateOnRefresh: true,
+        fastScrollEnd: true,
+        refreshPriority: 9,
       },
     });
 
@@ -765,24 +919,28 @@ export const HeroExperience: FC<HeroExperienceProps> = () => {
     // The user has ample scroll distance to view the completed beauty shot.
     // Only after scrolling past 1.0 does the page unpin and normally scroll to Page 3!
     tlCircles.to({}, { duration: 0.47 }, 0.53);
+    }, trackRef);
 
-    // Refresh ScrollTrigger to calculate accurate pin-spacer layout
-    ScrollTrigger.refresh();
+    // Defer global sort + refresh until all sibling sections (Page 4-9) have mounted cleanly
+    const syncTriggers = () => {
+      ScrollTrigger.sort();
+      ScrollTrigger.refresh();
+      lenisRef.current?.resize();
+      lenisRef.current?.scrollTo(window.scrollY, { immediate: true, force: true });
+      ScrollTrigger.update();
+    };
+    const refreshRafId = requestAnimationFrame(syncTriggers);
+    const handleWindowLoad = () => syncTriggers();
+    window.addEventListener('load', handleWindowLoad);
 
     return () => {
-      introTweenLeft?.kill();
-      introTweenRight?.kill();
-      introTweenBottomLeft?.kill();
-      swayTweenLeft?.kill();
-      swayTweenRight?.kill();
-      swayTweenBottomLeft?.kill();
-      tlFall.kill();
-      tlCircles.kill();
-      ScrollTrigger.getAll().forEach((t) => t.kill());
-      gsap.ticker.remove(tickerCallback);
-      lenis.destroy();
+      cancelAnimationFrame(refreshRafId);
+      window.removeEventListener('load', handleWindowLoad);
+      ctx.revert();
     };
   }, [
+    vw,
+    vh,
     heroLeft,
     heroTopVh,
     page2Left,
@@ -900,12 +1058,12 @@ export const HeroExperience: FC<HeroExperienceProps> = () => {
           {/* Rock Shadow (on Page 1 beneath the bottle on the right rock) */}
           <div
             ref={rockShadowRef}
-            className="absolute pointer-events-none z-10 transition-all duration-150 will-change-transform"
+            className="absolute pointer-events-none z-10 will-change-transform"
             style={{
-              left: `${heroLeft}%`,
-              top: `${heroTopVh + 21}vh`,
-              width: '280px',
-              height: '55px',
+              left: `${heroMetrics.rockLeftPx}px`,
+              top: `${heroMetrics.rockTopPx}px`,
+              width: `${heroMetrics.rockWidthPx}px`,
+              height: `${heroMetrics.rockHeightPx}px`,
               transform: 'translate(-50%, -50%)',
               background:
                 'radial-gradient(ellipse at center, rgba(3, 10, 5, 0.9) 0%, rgba(3, 10, 5, 0.45) 45%, transparent 75%)',
@@ -916,7 +1074,7 @@ export const HeroExperience: FC<HeroExperienceProps> = () => {
           {/* Animated Scroll Mouse Logo */}
           <div
             ref={scrollIndicatorRef}
-            className="absolute bottom-8 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center pointer-events-none transition-opacity duration-300"
+            className="absolute bottom-8 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center pointer-events-none"
           >
             <div className="w-6 h-10 rounded-full border-2 border-lime-400/60 flex items-start justify-center p-1.5 shadow-lg shadow-lime-400/20 bg-black/40 backdrop-blur-md">
               <div className="w-1.5 h-2.5 rounded-full bg-lime-400 animate-bounce" />
@@ -950,10 +1108,10 @@ export const HeroExperience: FC<HeroExperienceProps> = () => {
               ref={stoneShadowRef}
               className="absolute pointer-events-none z-10 will-change-transform"
               style={{
-                left: `${page2ShadowLeft}%`,
-                top: `${page2ShadowTop}%`,
-                width: `${page2ShadowWidth}px`,
-                height: `${page2ShadowHeight}px`,
+                left: `${heroMetrics.shadowLeftPx}px`,
+                top: `${heroMetrics.shadowTopPx}px`,
+                width: `${heroMetrics.shadowWidthPx}px`,
+                height: `${heroMetrics.shadowHeightPx}px`,
                 transform: 'translate(-50%, -50%)',
                 background:
                   'radial-gradient(ellipse at center, rgba(1, 8, 3, 0.95) 0%, rgba(5, 18, 8, 0.6) 45%, transparent 75%)',
@@ -973,12 +1131,18 @@ export const HeroExperience: FC<HeroExperienceProps> = () => {
           ref={orbitContainerRef}
           className="absolute z-20 pointer-events-none select-none will-change-transform"
           style={{
-            left: `${orbitCenterLeft}%`,
-            top: `${orbitCenterTop}%`,
+            left: `${heroMetrics.orbitLeftPx}px`,
+            top: `${heroMetrics.orbitTopPx}px`,
             width: 0,
             height: 0,
           }}
         >
+          <div
+            style={{
+              transform: `scale(${heroMetrics.orbitScale})`,
+              transformOrigin: '0 0',
+            }}
+          >
           {/* SVG Connecting Arc & Spoke Lines */}
           <svg
             ref={orbitLinesRef}
@@ -1060,18 +1224,19 @@ export const HeroExperience: FC<HeroExperienceProps> = () => {
               </p>
             </div>
           ))}
+          </div>
         </div>
 
         {/* ======================================================== */}
         {/* THE TRAVELING BOTTLE (Layer z-30: In front of circles)  */}
-        {/* Starts at top: -40vh (Page 1 rock) and lands on Page 2   */}
+        {/* Starts at Page 1 rock and lands cleanly on Page 2 stone */}
         {/* ======================================================== */}
         <div
           ref={bottleRef}
           className="absolute z-30 pointer-events-none will-change-transform"
           style={{
-            width: 'clamp(210px, 19vw, 310px)',
-            height: 'clamp(320px, 46vh, 480px)',
+            width: `${heroMetrics.bottleWidthPx}px`,
+            height: `${heroMetrics.bottleHeightPx}px`,
             backfaceVisibility: 'hidden',
             WebkitBackfaceVisibility: 'hidden',
           }}
@@ -1088,18 +1253,24 @@ export const HeroExperience: FC<HeroExperienceProps> = () => {
         </div>
 
         {/* ======================================================== */}
-        {/* 🍃 LEFT HERO CARD: TRADITIONAL DRINKS (REDIRECTS TO PAGE 7) */}
+        {/* 🍃 LEFT HERO CARD: TRADITIONAL DRINKS -> JEERA BUTTERMILK */}
         {/* ======================================================== */}
         <div
           ref={page2LeftCardRef}
-          className="absolute z-40 hidden md:flex flex-col items-start text-left pointer-events-auto select-none"
+          className="absolute z-40 hidden md:flex flex-col items-start text-left -translate-y-1/2 pointer-events-auto select-none"
           style={{
-            left: `${leftCardLeftPercent}%`,
-            top: `${leftCardTopPercent}%`,
-            transform: `translateY(calc(-50% + ${leftCardOffsetY}px)) scale(${cardScale})`,
-            maxWidth: cardMaxWidth,
+            left: `${heroMetrics.leftCardEdgePercent}%`,
+            top: `calc(${leftCardTopPercent}% + ${leftCardOffsetY * heroMetrics.heightScale}px)`,
+            maxWidth: heroMetrics.cardMaxWidthCss,
           }}
         >
+          <div
+            className="flex flex-col items-start text-left"
+            style={{
+              transform: `scale(${heroMetrics.leftCardScale})`,
+              transformOrigin: 'left center',
+            }}
+          >
           {/* Eyebrow Tag */}
           <span className="text-[10px] sm:text-xs font-bold uppercase tracking-[0.25em] text-lime-400 mb-1.5 drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)]">
             Heritage Botanicals
@@ -1135,7 +1306,7 @@ export const HeroExperience: FC<HeroExperienceProps> = () => {
             />
 
             <button
-              onClick={() => handleScrollToTarget(leftTargetId)}
+              onClick={() => handleDrinkRedirect(leftDrinkSlug)}
               className="relative px-7 sm:px-9 py-3 sm:py-3.5 bg-transparent border-2 border-white rounded-none text-white font-black tracking-[0.22em] text-xs sm:text-sm uppercase cursor-pointer overflow-hidden transition-all duration-300 ease-out hover:scale-105 hover:bg-white hover:text-black hover:shadow-[0_0_35px_rgba(255,255,255,0.85)] active:scale-95 flex items-center gap-2.5 backdrop-blur-[2px] shadow-[0_0_20px_rgba(255,255,255,0.35)]"
             >
               {/* Shimmer Sheen Sweep on Hover */}
@@ -1159,21 +1330,28 @@ export const HeroExperience: FC<HeroExperienceProps> = () => {
               />
             </button>
           </div>
+          </div>
         </div>
 
         {/* ======================================================== */}
-        {/* 🌿 RIGHT HERO CARD: WELLNESS DRINKS (REDIRECTS TO PAGE 8) */}
+        {/* 🌿 RIGHT HERO CARD: WELLNESS DRINKS -> GINGER SHOT       */}
         {/* ======================================================== */}
         <div
           ref={page2RightCardRef}
-          className="absolute z-40 hidden md:flex flex-col items-end text-right pointer-events-auto select-none"
+          className="absolute z-40 hidden md:flex flex-col items-end text-right -translate-y-1/2 pointer-events-auto select-none"
           style={{
-            right: `${rightCardRightPercent}%`,
-            top: `${rightCardTopPercent}%`,
-            transform: `translateY(calc(-50% + ${rightCardOffsetY}px)) scale(${cardScale})`,
-            maxWidth: cardMaxWidth,
+            right: `${heroMetrics.rightCardEdgePercent}%`,
+            top: `calc(${rightCardTopPercent}% + ${rightCardOffsetY * heroMetrics.heightScale}px)`,
+            maxWidth: heroMetrics.cardMaxWidthCss,
           }}
         >
+          <div
+            className="flex flex-col items-end text-right"
+            style={{
+              transform: `scale(${heroMetrics.rightCardScale})`,
+              transformOrigin: 'right center',
+            }}
+          >
           {/* Eyebrow Tag */}
           <span className="text-[10px] sm:text-xs font-bold uppercase tracking-[0.25em] text-lime-400 mb-1.5 drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)]">
             Potent Elixirs
@@ -1209,7 +1387,7 @@ export const HeroExperience: FC<HeroExperienceProps> = () => {
             />
 
             <button
-              onClick={() => handleScrollToTarget(rightTargetId)}
+              onClick={() => handleDrinkRedirect(rightDrinkSlug)}
               className="relative px-7 sm:px-9 py-3 sm:py-3.5 bg-transparent border-2 border-white rounded-none text-white font-black tracking-[0.22em] text-xs sm:text-sm uppercase cursor-pointer overflow-hidden transition-all duration-300 ease-out hover:scale-105 hover:bg-white hover:text-black hover:shadow-[0_0_35px_rgba(255,255,255,0.85)] active:scale-95 flex items-center gap-2.5 backdrop-blur-[2px] shadow-[0_0_20px_rgba(255,255,255,0.35)]"
             >
               {/* Shimmer Sheen Sweep on Hover */}
@@ -1232,6 +1410,7 @@ export const HeroExperience: FC<HeroExperienceProps> = () => {
                 className="relative z-10 transition-transform duration-300 group-hover:translate-x-1.5 stroke-[2.5]"
               />
             </button>
+          </div>
           </div>
         </div>
       </section>

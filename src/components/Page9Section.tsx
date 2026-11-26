@@ -210,6 +210,8 @@ export const Page9Section: FC = () => {
             trigger: section,
             start: 'top 75%',
             toggleActions: 'play none none reverse',
+            refreshPriority: 0,
+            invalidateOnRefresh: true,
           },
         });
 
@@ -252,6 +254,8 @@ export const Page9Section: FC = () => {
             trigger: section,
             start: 'top 65%',
             toggleActions: 'play none none reverse',
+            refreshPriority: 0,
+            invalidateOnRefresh: true,
           },
         });
 
